@@ -1,0 +1,157 @@
+{{define "panel-print"}}
+<div class="card">
+  <label>Product
+    <select name="product_id" hx-get="/print/fields" hx-target="#fields" hx-trigger="change">
+      <option value="">Choose a product…</option>
+      {{range .Products}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  {{if not .Products}}<p class="mute" style="margin-bottom:0">No products yet.{{if eq .User.Role "admin"}} Add one in the Products tab.{{else}} Ask an admin to add one.{{end}}</p>{{end}}
+  <div id="fields"></div>
+</div>
+{{if .Jobs}}<div class="card"><h2>Recent prints</h2>
+<table><thead><tr><th>When (UTC)</th><th>Product</th><th>Batch</th><th>Qty</th><th>By</th></tr></thead><tbody>
+{{range .Jobs}}<tr><td class="mute">{{.When}}</td><td>{{.Product}}</td><td>{{.Batch}}</td><td>{{.Qty}}</td><td class="mute">{{.Email}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+{{end}}
+
+{{define "print-fields"}}
+<form id="print-form" hx-post="/print/render" hx-swap="none" style="margin-top:1rem">
+  <input type="hidden" name="product_id" value="{{.P.ID}}">
+  <label>Product name <input name="name" value="{{.P.Name}}"></label>
+  <div class="row">
+    <label>Origin <input name="origin" value="{{.P.Origin}}"></label>
+    <label>UPC-A (11 digits, or 12 with check digit) <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
+  </div>
+  <label>Ingredients <textarea name="ingredients" rows="3">{{.P.Ingredients}}</textarea></label>
+  <div class="row">
+    <label>Net weight <input name="weight" value="{{.P.Weight}}"></label>
+    <label>Unit <select name="weight_unit">{{range $u := .Units}}<option {{if eq $u $.P.WeightUnit}}selected{{end}}>{{$u}}</option>{{end}}</select></label>
+    <label>Price (no $) <input name="price" value="{{.P.Price}}"></label>
+  </div>
+  <div class="row">
+    <label>Prep date <input type="date" name="prep" value="{{.Prep}}"></label>
+    <label>Best by <input type="date" name="exp" value="{{.Exp}}"></label>
+    <label>Batch <input name="batch"></label>
+  </div>
+  <div class="row">
+    <label>Template <select name="template_id">{{range .Templates}}<option value="{{.ID}}" {{if eq .ID $.P.TemplateID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label>Quantity <input type="number" name="qty" min="1" max="999" value="1"></label>
+  </div>
+  <div class="actions"><button class="primary" type="submit">Print labels</button></div>
+</form>
+{{end}}
+
+{{define "panel-products"}}
+<div class="card" id="form">{{template "product-form" .}}</div>
+<div class="card"><table><thead><tr><th>Name</th><th>UPC</th><th>Weight</th><th>Price</th><th></th></tr></thead>
+<tbody id="rows">{{template "product-rows" .}}</tbody></table></div>
+{{end}}
+
+{{define "product-form"}}
+<form hx-post="/products" hx-target="#rows" hx-swap="innerHTML">
+  <h2>{{if .P.ID}}Edit product{{else}}New product{{end}}</h2>
+  <input type="hidden" name="id" value="{{.P.ID}}">
+  <label>Name <input name="name" required value="{{.P.Name}}"></label>
+  <div class="row">
+    <label>UPC-A <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
+    <label>Origin <input name="origin" value="{{.P.Origin}}"></label>
+  </div>
+  <label>Ingredients <textarea name="ingredients" rows="3">{{.P.Ingredients}}</textarea></label>
+  <div class="row">
+    <label>Weight <input name="weight" value="{{.P.Weight}}"></label>
+    <label>Unit <select name="weight_unit">{{range $u := .Units}}<option {{if eq $u $.P.WeightUnit}}selected{{end}}>{{$u}}</option>{{end}}</select></label>
+    <label>Price <input name="price" value="{{.P.Price}}"></label>
+    <label>Shelf life (days) <input type="number" min="0" name="shelf_life_days" value="{{.P.ShelfLifeDays}}"></label>
+  </div>
+  <label>Default template
+    <select name="template_id"><option value="0">(none)</option>
+    {{range .Templates}}<option value="{{.ID}}" {{if eq .ID $.P.TemplateID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+  <div class="actions">
+    <button class="primary">{{if .P.ID}}Update{{else}}Add{{end}}</button>
+    {{if .P.ID}}<button type="button" hx-get="/products/form" hx-target="#form">Cancel</button>{{end}}
+  </div>
+</form>
+{{end}}
+
+{{define "product-rows"}}{{range .Products}}<tr>
+  <td>{{.Name}}</td><td class="mute">{{.Barcode}}</td><td>{{.Weight}} {{.WeightUnit}}</td><td>{{if .Price}}${{.Price}}{{end}}</td>
+  <td class="r"><button hx-get="/products/form?id={{.ID}}" hx-target="#form">Edit</button>
+    <button class="danger" hx-delete="/products/{{.ID}}" hx-target="#rows" hx-confirm="Delete {{.Name}}?">Delete</button></td>
+</tr>{{else}}<tr><td colspan="5" class="mute">No products yet.</td></tr>{{end}}{{end}}
+
+{{define "product-saved"}}{{template "product-rows" .}}<div id="form" class="card" hx-swap-oob="innerHTML">{{template "product-form" .}}</div>{{end}}
+
+{{define "panel-templates"}}
+<div class="card" id="form">{{template "template-form" .}}</div>
+<div class="card"><table><thead><tr><th>Name</th><th>Size</th><th></th></tr></thead>
+<tbody id="rows">{{template "template-rows" .}}</tbody></table></div>
+{{end}}
+
+{{define "template-form"}}
+<form hx-post="/templates" hx-target="#rows" hx-swap="innerHTML">
+  <h2>{{if .T.ID}}Edit template{{else}}New template{{end}}</h2>
+  <input type="hidden" name="id" value="{{.T.ID}}">
+  <label>Name <input name="name" required value="{{.T.Name}}"></label>
+  <label>Load a .zpl file
+    <input type="file" accept=".zpl,.txt,text/plain" onchange="const f=this.files[0]; if(f){f.text().then(t=>{this.form.zpl.value=t; if(!this.form.name.value) this.form.name.value=f.name.replace(/\.[^.]+$/,'')})}"></label>
+  <label>ZPL <textarea class="mono" name="zpl" rows="12" required>{{.T.ZPL}}</textarea></label>
+  <p class="mute">Variables: <code>${NAME}</code> <code>${ORIGIN}</code> <code>${INGREDIENTS}</code> <code>${BARCODE}</code> <code>${WEIGHT}</code> <code>${WEIGHT_UNIT}</code> <code>${PRICE}</code> <code>${PREP_MDY}</code> <code>${EXP_MDY}</code> <code>${BATCH_NO}</code></p>
+  <div class="actions">
+    <button class="primary">{{if .T.ID}}Update{{else}}Add{{end}}</button>
+    {{if .T.ID}}<button type="button" hx-get="/templates/form" hx-target="#form">Cancel</button>{{end}}
+  </div>
+</form>
+{{end}}
+
+{{define "template-rows"}}{{range .Templates}}<tr>
+  <td>{{.Name}}</td><td class="mute">{{len .ZPL}} chars</td>
+  <td class="r"><button hx-get="/templates/form?id={{.ID}}" hx-target="#form">Edit</button>
+    <button class="danger" hx-delete="/templates/{{.ID}}" hx-target="#rows" hx-confirm="Delete {{.Name}}?">Delete</button></td>
+</tr>{{else}}<tr><td colspan="3" class="mute">No templates yet.</td></tr>{{end}}{{end}}
+
+{{define "template-saved"}}{{template "template-rows" .}}<div id="form" class="card" hx-swap-oob="innerHTML">{{template "template-form" .}}</div>{{end}}
+
+{{define "panel-team"}}
+<div class="card" id="form">{{template "team-form" .}}</div>
+<div class="card"><table><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
+<tbody id="rows">{{template "team-rows" .}}</tbody></table></div>
+{{end}}
+
+{{define "team-form"}}
+<form hx-post="/team" hx-target="#rows" hx-swap="innerHTML">
+  <h2>{{if .U.ID}}Edit user{{else}}Add user{{end}}</h2>
+  <input type="hidden" name="id" value="{{.U.ID}}">
+  <div class="row">
+    <label>Email <input type="email" name="email" required value="{{.U.Email}}"></label>
+    <label>{{if .U.ID}}New password (leave blank to keep){{else}}Password (8+ characters){{end}} <input type="password" name="password" minlength="8" autocomplete="new-password" {{if not .U.ID}}required{{end}}></label>
+  </div>
+  <p class="mute" style="margin-bottom:0">Users can print labels. Only you, as admin, can manage products, templates and the team.</p>
+  <div class="actions">
+    <button class="primary">{{if .U.ID}}Update{{else}}Add{{end}}</button>
+    {{if .U.ID}}<button type="button" hx-get="/team/form" hx-target="#form">Cancel</button>{{end}}
+  </div>
+</form>
+{{end}}
+
+{{define "team-rows"}}{{range .Team}}<tr>
+  <td>{{.Email}}</td><td class="mute">{{.Role}}</td>
+  <td class="r">{{if eq .Role "user"}}<button hx-get="/team/form?id={{.ID}}" hx-target="#form">Edit</button>
+    <button class="danger" hx-delete="/team/{{.ID}}" hx-target="#rows" hx-confirm="Delete {{.Email}}?">Delete</button>{{end}}</td>
+</tr>{{end}}{{end}}
+
+{{define "team-saved"}}{{template "team-rows" .}}<div id="form" class="card" hx-swap-oob="innerHTML">{{template "team-form" .}}</div>{{end}}
+
+{{define "panel-account"}}
+<div class="card">
+  <h2>Account</h2>
+  <p class="mute">Signed in as {{.User.Email}} ({{.User.Role}}) at {{.User.TenantName}}.</p>
+  <form hx-post="/account/password" hx-target="#pw-msg" hx-on::after-request="if(event.detail.successful) this.reset()">
+    <div class="row">
+      <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+      <label>New password <input type="password" name="new" required minlength="8" autocomplete="new-password"></label>
+    </div>
+    <div class="actions"><button class="primary">Change password</button> <span id="pw-msg"></span></div>
+  </form>
+</div>
+{{end}}
