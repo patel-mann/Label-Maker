@@ -61,8 +61,8 @@ func envOr(k, d string) string {
 }
 
 func main() {
-	dbPath := envOr("DB_PATH", "labelprint.db")
-	db, err := openDB(dbPath)
+	dsn := envOr("DATABASE_URL", "postgres://labelprint:labelprint@localhost:5432/labelprint?sslmode=disable")
+	db, err := openDB(dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func main() {
 	adm.DELETE("/team/:id", a.teamDelete)
 
 	addr := envOr("ADDR", ":8080")
-	log.Printf("listening on %s (db %s, registration open: %v)", addr, dbPath, a.allowRegister)
+	log.Printf("listening on %s (registration open: %v)", addr, a.allowRegister)
 	e.Logger.Fatal(e.Start(addr))
 }
 

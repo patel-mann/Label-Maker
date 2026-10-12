@@ -21,7 +21,7 @@
   <label>Product name <input name="name" value="{{.P.Name}}"></label>
   <div class="row">
     <label>Origin <input name="origin" value="{{.P.Origin}}"></label>
-    <label>UPC-A (11 digits, or 12 with check digit) <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
+    <label>UPC-A (optional; 11 digits, or 12 with check digit) <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
   </div>
   <label>Ingredients <textarea name="ingredients" rows="3">{{.P.Ingredients}}</textarea></label>
   <div class="row">
@@ -54,7 +54,7 @@
   <input type="hidden" name="id" value="{{.P.ID}}">
   <label>Name <input name="name" required value="{{.P.Name}}"></label>
   <div class="row">
-    <label>UPC-A <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
+    <label>UPC-A (optional) <input name="barcode" inputmode="numeric" maxlength="12" value="{{.P.Barcode}}"></label>
     <label>Origin <input name="origin" value="{{.P.Origin}}"></label>
   </div>
   <label>Ingredients <textarea name="ingredients" rows="3">{{.P.Ingredients}}</textarea></label>
@@ -97,6 +97,7 @@
     <input type="file" accept=".zpl,.txt,text/plain" onchange="const f=this.files[0]; if(f){f.text().then(t=>{this.form.zpl.value=t; if(!this.form.name.value) this.form.name.value=f.name.replace(/\.[^.]+$/,'')})}"></label>
   <label>ZPL <textarea class="mono" name="zpl" rows="12" required>{{.T.ZPL}}</textarea></label>
   <p class="mute">Variables: <code>${NAME}</code> <code>${ORIGIN}</code> <code>${INGREDIENTS}</code> <code>${BARCODE}</code> <code>${WEIGHT}</code> <code>${WEIGHT_UNIT}</code> <code>${PRICE}</code> <code>${PREP_MDY}</code> <code>${EXP_MDY}</code> <code>${BATCH_NO}</code></p>
+  <p class="mute">Barcodes are UPC-A (<code>^BU</code>). If no UPC-A is supplied, the field containing <code>${BARCODE}</code> is left out of the label.</p>
   <div class="actions">
     <button class="primary">{{if .T.ID}}Update{{else}}Add{{end}}</button>
     {{if .T.ID}}<button type="button" hx-get="/templates/form" hx-target="#form">Cancel</button>{{end}}

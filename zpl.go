@@ -12,10 +12,13 @@ import (
 
 var (
 	reFO  = regexp.MustCompile(`\^FO([\d.]+),([\d.]+)`)
-	reBE  = regexp.MustCompile(`\^BE([NRIB]),(\d+),([YN]),([YN])`)
 	reVar = regexp.MustCompile(`\$\{(\w+)\}`)
 	rePQ  = regexp.MustCompile(`\^PQ[^\^]*`)
 	ctl   = strings.NewReplacer("^", "", "~", "")
+
+	// reBarcodeField matches a ZPL barcode field whose data is the ${BARCODE} variable:
+	// optional ^FO/^FT origin, optional ^BY defaults, the ^B<type> command, then ^FD...^FS.
+	reBarcodeField = regexp.MustCompile(`(?:\^F[OT][^\^]*)?(?:\^BY[^\^]*)?\^B[A-Z0-9][^\^]*\^FD[^\^]*\$\{BARCODE\}[^\^]*\^FS`)
 )
 
 // Label is everything needed to fill one template.
@@ -26,10 +29,10 @@ type Label struct {
 	Qty                                int
 }
 
-// normalizeTemplate: LF line endings, EAN-13 (^BE) -> UPC-A (^BU), integer ^FO coordinates.
+// normalizeTemplate: LF line endings and integer ^FO coordinates. Templates are authored
+// as UPC-A (^BU); EAN-13 (^BE) is no longer rewritten.
 func normalizeTemplate(t string) string {
 	t = strings.ReplaceAll(t, "\r\n", "\n")
-	t = reBE.ReplaceAllString(t, "^BU${1},${2},${3},${4},Y")
 	return reFO.ReplaceAllStringFunc(t, func(m string) string {
 		s := reFO.FindStringSubmatch(m)
 		x, _ := strconv.ParseFloat(s[1], 64)
@@ -105,6 +108,9 @@ func renderZPL(tpl string, l Label) (string, error) {
 		"PRICE": oneLine(l.Price), "PREP_MDY": mdy(l.Prep), "EXP_MDY": mdy(l.Exp), "BATCH_NO": oneLine(l.Batch),
 	}
 	z := normalizeTemplate(tpl)
+	if bc == "" { // no UPC-A supplied: drop the barcode field instead of printing an empty symbol
+		z = reBarcodeField.ReplaceAllString(z, "")
+	}
 	z = reVar.ReplaceAllStringFunc(z, func(m string) string {
 		k := reVar.FindStringSubmatch(m)[1]
 		if v, ok := vals[k]; ok {
